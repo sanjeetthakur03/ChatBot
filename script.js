@@ -5,47 +5,53 @@ const chatbotToggler = document.querySelector(".chatbot-toggler");
 const chatbotCloseBtn = document.querySelector(".close-btn");
 let userMessage;
 
-const API_KEY = "use your api key";
+// Replace with your actual Cohere API key
+const COHERE_API_KEY = "your API key";
 
 const inputIniHeight = chatInput.scrollHeight;
 
 const createChatLi = (message, className) => {
     const chatLi = document.createElement("li");
     chatLi.classList.add("chat", className);
-    let chatContent = className === "outgoing" ? `<p></p>` : `<span class="material-symbol-outlined">🎅<p></p></span>`;
+    let chatContent = className === "outgoing" ? `<p></p>` : `<span class="material-symbol-outlined">🤖</span><p></p>`;
     chatLi.innerHTML = chatContent;
-    chatLi.querySelector("p").textContent=message;
+    chatLi.querySelector("p").textContent = message;
     return chatLi;
 };
 
 const generateResponse = async (incomingChatLi) => {
-    const API_URL = "https://api.openai.com/v1/chat/completions";
+    const API_URL = "https://api.cohere.ai/v1/generate";
     const messageElement = incomingChatLi.querySelector("p");
+
     const requestOptions = {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${API_KEY}`
+            "Authorization": `Bearer ${COHERE_API_KEY}`
         },
         body: JSON.stringify({
-            model: "gpt-3.5-turbo",
-            messages: [{ role: "user", content: userMessage }]
+            model: "command-xlarge", // Model type (ensure it exists for your Cohere account)
+            prompt: userMessage,
+            max_tokens: 100,
+            temperature: 0.75
         })
     };
 
     try {
         const response = await fetch(API_URL, requestOptions);
+        console.log("Response Status:", response.status); // Log response status
+
         if (response.ok) {
             const data = await response.json();
-            messageElement.textContent = data.choices[0].message.content;
-        } else if (response.status === 429) {
-            messageElement.textContent = "Rate limit exceeded. Please try again later.";
-        } else if (response.status === 405) {
-            messageElement.textContent = "Method Not Allowed. Please check the HTTP method used.";
+            console.log("API Response:", data); // Log the actual response data
+            messageElement.textContent =data.generations[0].text.trim();
         } else {
-            messageElement.textContent = "Oops! Something went wrong. Please try again.";
+            const errorData = await response.json();
+            console.log("Error Details:", errorData); // Log specific error details
+            messageElement.textContent = errorData.message || "Oops! Something went wrong. Please try again.";
         }
     } catch (error) {
+        console.error("Fetch Error:", error); // Log any network or runtime errors
         messageElement.textContent = "Oops! Something went wrong. Please try again.";
     }
 };
@@ -53,23 +59,23 @@ const generateResponse = async (incomingChatLi) => {
 const handleChat = () => {
     userMessage = chatInput.value.trim();
     if (!userMessage) return;
-//append the user's message to the chatbox
+
     chatbox.appendChild(createChatLi(userMessage, "outgoing"));
-   // chatbox.scrollTo(0,chatbox.scrollHeight);
+    chatInput.value = ""; // Clear input
+    chatInput.style.height = `${inputIniHeight}px`;
+
     setTimeout(() => {
-        const incomingChatLi = createChatLi("Thinking....", "incoming");
+        const incomingChatLi = createChatLi("Thinking...", "incoming");
         chatbox.appendChild(incomingChatLi);
-       // chatbox.scrollTo(0,chatbox.scrollHeight);
         generateResponse(incomingChatLi);
     }, 600);
-}
-chatInput.addEventListener("input",()=>{
-    //adjust the height of the input textarea based on the content
-    chatInput.style.height =`${inputIniHeight}px`;
-    chatInput.style.height =`${chatInput.scrollHeight}px`;
+};
+
+chatInput.addEventListener("input", () => {
+    chatInput.style.height = `${inputIniHeight}px`;
+    chatInput.style.height = `${chatInput.scrollHeight}px`;
 });
 
-
-chatbotToggler.addEventListener("click",()=>document.body.classList.toggle("show-chatbot"));
-chatbotCloseBtn.addEventListener("click",() => document.body.classList.remove("show-chatbot"));
+chatbotToggler.addEventListener("click", () => document.body.classList.toggle("show-chatbot"));
+chatbotCloseBtn.addEventListener("click", () => document.body.classList.remove("show-chatbot"));
 sendChatBtn.addEventListener("click", handleChat);
